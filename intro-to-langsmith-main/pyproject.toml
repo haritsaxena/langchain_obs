@@ -20,7 +20,7 @@ dependencies = [
     "scikit-learn",
     "pandas",
     "pyarrow",
+    "langchain-azure-ai>=1.0.0",
 ]
 
-[tool.uv]
-dev-dependencies = []
+[dependency-groups]
