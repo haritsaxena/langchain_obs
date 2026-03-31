@@ -8,6 +8,8 @@ from langsmith import traceable
 from openai import OpenAI
 from typing import List
 import nest_asyncio
+from langchain_openai import AzureOpenAIEmbeddings
+
 
 MODEL_NAME = "gpt-4o-mini"
 MODEL_PROVIDER = "openai"
@@ -18,11 +20,27 @@ If you don't know the answer, just say that you don't know.
 Use three sentences maximum and keep the answer concise.
 """
 
-openai_client = OpenAI()
+#openai_client = OpenAI()  
+from langchain_openai import AzureChatOpenAI
+llm = AzureChatOpenAI(
+    azure_deployment=os.getenv("AZURE_OPENAI_DEPLOYMENT"),  # or your deployment
+    api_version=os.getenv("AZURE_OPENAI_API_VERSION"),  # or your api version
+    temperature=0,
+    max_tokens=None,
+    timeout=None,
+    max_retries=2,
+    # other params...
+)
+ 
 
 def get_vector_db_retriever():
     persist_path = os.path.join(tempfile.gettempdir(), "union.parquet")
-    embd = OpenAIEmbeddings()
+    embd = AzureOpenAIEmbeddings(
+        azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+        api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+        azure_deployment=os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT"),
+        api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
+    )
 
     # If vector store exists, then load it
     if os.path.exists(persist_path):
@@ -34,7 +52,9 @@ def get_vector_db_retriever():
         return vectorstore.as_retriever(lambda_mult=0)
 
     # Otherwise, index LangSmith documents and create new vector store
-    ls_docs_sitemap_loader = SitemapLoader(web_path="https://docs.smith.langchain.com/sitemap.xml", continue_on_failure=True)
+    #ls_docs_sitemap_loader = SitemapLoader(web_path="https://docs.smith.langchain.com/sitemap.xml", continue_on_failure=True)
+    sitemap_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "langsmithdoc.xml"))
+    ls_docs_sitemap_loader = SitemapLoader(web_path=sitemap_path, is_local=True, continue_on_failure=True)
     ls_docs = ls_docs_sitemap_loader.load()
 
     text_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
@@ -93,10 +113,11 @@ call_openai
     }
 )
 def call_openai(messages: List[dict]) -> str:
-    return openai_client.chat.completions.create(
-        model=MODEL_NAME,
-        messages=messages,
-    )
+    return llm.invoke(messages)
+    # return openai_client.chat.completions.create(
+    #     model=MODEL_NAME,
+    #     messages=messages,
+    # )
 
 """
 langsmith_rag
@@ -108,4 +129,4 @@ langsmith_rag
 def langsmith_rag(question: str):
     documents = retrieve_documents(question)
     response = generate_response(question, documents)
-    return response.choices[0].message.content
+    return response

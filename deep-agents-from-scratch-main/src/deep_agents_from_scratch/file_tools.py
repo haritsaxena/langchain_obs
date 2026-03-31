@@ -22,6 +22,7 @@ from deep_agents_from_scratch.state import DeepAgentState
 @tool(description=LS_DESCRIPTION)
 def ls(state: Annotated[DeepAgentState, InjectedState]) -> list[str]:
     """List all files in the virtual filesystem."""
+    print("ls called")
     return list(state.get("files", {}).keys())
 
 
@@ -62,7 +63,7 @@ def read_file(
     for i in range(start_idx, end_idx):
         line_content = lines[i][:2000]  # Truncate long lines
         result_lines.append(f"{i + 1:6d}\t{line_content}")
-
+    print("read_file called" + file_path)
     return "\n".join(result_lines)
 
 
@@ -85,6 +86,7 @@ def write_file(
         Command to update agent state with new file content
     """
     files = state.get("files", {})
+    print("write_file called" + file_path)
     files[file_path] = content
     return Command(
         update={

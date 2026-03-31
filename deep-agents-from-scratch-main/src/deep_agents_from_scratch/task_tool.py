@@ -61,8 +61,12 @@ def _create_task_tool(tools, subagents: list[SubAgent], model, state_schema):
         else:
             # Default to all tools
             _tools = tools
-        agents[_agent["name"]] = create_agent(   # updated 1.0
-            model, system_prompt=_agent["prompt"], tools=_tools, state_schema=state_schema
+        agents[_agent["name"]] = create_agent(  # updated 1.0
+            model,
+            system_prompt=_agent["prompt"],
+            tools=_tools,
+            state_schema=state_schema,
+            name=f"subagent:{_agent['name']}",
         )
 
     # Generate description of available sub-agents for the tool description
@@ -93,8 +97,16 @@ def _create_task_tool(tools, subagents: list[SubAgent], model, state_schema):
         # This is the key to context isolation - no parent history
         state["messages"] = [{"role": "user", "content": description}]
 
-        # Execute the sub-agent in isolation
-        result = sub_agent.invoke(state)
+        # Execute the sub-agent in isolation (tags/metadata surface in LangSmith traces)
+        subagent_config = {
+            "run_name": f"subagent:{subagent_type}",
+            "tags": ["subagent", subagent_type],
+            "metadata": {
+                "agent_role": "subagent",
+                "subagent_type": subagent_type,
+            },
+        }
+        result = sub_agent.invoke(state, config=subagent_config)
 
         # Return results to parent agent via Command state update
         return Command(
